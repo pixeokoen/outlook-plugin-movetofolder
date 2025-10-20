@@ -129,18 +129,7 @@
         </bt:LongStrings>
       </Resources>
       
-      <WebApplicationInfo>
-        <Id>8b7f3e9a-1234-4c5d-8e9f-0a1b2c3d4e5f</Id>
-        <Resource>api://pixeokoen.github.io/8b7f3e9a-1234-4c5d-8e9f-0a1b2c3d4e5f</Resource>
-        <Scopes>
-          <Scope>Mail.ReadWrite</Scope>
-          <Scope>Mail.ReadWrite.Shared</Scope>
-        </Scopes>
-      </WebApplicationInfo>
-      
     </VersionOverrides>
   </VersionOverrides>
   
 </OfficeApp>
-
-
