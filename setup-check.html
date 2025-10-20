@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Verification - Outlook Move-to-Folder Add-in</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .check-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            background: #f9f9f9;
+            border-left: 4px solid #e0e0e0;
+        }
+        .check-item.checking {
+            border-left-color: #ffa500;
+        }
+        .check-item.success {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+        .check-item.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        .check-icon {
+            font-size: 24px;
+            margin-right: 15px;
+            min-width: 30px;
+        }
+        .check-content {
+            flex: 1;
+        }
+        .check-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .check-detail {
+            font-size: 14px;
+            color: #666;
+        }
+        button {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .summary.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .summary.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .summary.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .help-link {
+            color: #0078d4;
+            text-decoration: none;
+        }
+        .help-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Setup Verification</h1>
+        <p class="subtitle">Checking if your Outlook Move-to-Folder add-in is properly configured...</p>
+
+        <button onclick="runChecks()" id="checkBtn">Run All Checks</button>
+        <button onclick="location.reload()">Reset</button>
+
+        <div id="checks">
+            <!-- Checks will be added here dynamically -->
+        </div>
+
+        <div id="summary" style="display: none;"></div>
+    </div>
+
+    <script>
+        const checks = [
+            {
+                id: 'server',
+                title: 'Web Server Running',
+                test: async () => {
+                    try {
+                        const response = await fetch('/manifest.xml');
+                        return {
+                            pass: response.ok,
+                            detail: response.ok 
+                                ? `Server accessible at ${window.location.origin}` 
+                                : 'Server responded but manifest not found'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: `Cannot connect to server: ${error.message}` };
+                    }
+                }
+            },
+            {
+                id: 'manifest',
+                title: 'Manifest File Present',
+                test: async () => {
+                    try {
+                        const response = await fetch('/manifest.xml');
+                        const text = await response.text();
+                        const hasId = text.includes('<Id>');
+                        const hasOfficeApp = text.includes('<OfficeApp');
+                        return {
+                            pass: response.ok && hasId && hasOfficeApp,
+                            detail: response.ok 
+                                ? 'manifest.xml found and appears valid' 
+                                : 'manifest.xml not accessible'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: `Cannot read manifest: ${error.message}` };
+                    }
+                }
+            },
+            {
+                id: 'taskpane-html',
+                title: 'Taskpane HTML File',
+                test: async () => {
+                    try {
+                        const response = await fetch('/src/taskpane/taskpane.html');
+                        const text = await response.text();
+                        const hasOfficeJs = text.includes('office.js');
+                        return {
+                            pass: response.ok && hasOfficeJs,
+                            detail: response.ok 
+                                ? 'taskpane.html found and includes Office.js' 
+                                : 'taskpane.html not found'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: `Cannot access taskpane.html: ${error.message}` };
+                    }
+                }
+            },
+            {
+                id: 'taskpane-js',
+                title: 'Taskpane JavaScript File',
+                test: async () => {
+                    try {
+                        const response = await fetch('/src/taskpane/taskpane.js');
+                        const text = await response.text();
+                        const hasLogic = text.includes('Office.onReady');
+                        return {
+                            pass: response.ok && hasLogic,
+                            detail: response.ok 
+                                ? 'taskpane.js found and appears complete' 
+                                : 'taskpane.js not found'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: `Cannot access taskpane.js: ${error.message}` };
+                    }
+                }
+            },
+            {
+                id: 'icon-16',
+                title: 'Icon 16x16',
+                test: async () => {
+                    try {
+                        const response = await fetch('/src/assets/icon-16.png');
+                        return {
+                            pass: response.ok && response.headers.get('content-type')?.includes('image'),
+                            detail: response.ok ? 'icon-16.png present' : 'icon-16.png not found'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: 'icon-16.png missing' };
+                    }
+                }
+            },
+            {
+                id: 'icon-32',
+                title: 'Icon 32x32',
+                test: async () => {
+                    try {
+                        const response = await fetch('/src/assets/icon-32.png');
+                        return {
+                            pass: response.ok && response.headers.get('content-type')?.includes('image'),
+                            detail: response.ok ? 'icon-32.png present' : 'icon-32.png not found'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: 'icon-32.png missing' };
+                    }
+                }
+            },
+            {
+                id: 'icon-64',
+                title: 'Icon 64x64',
+                test: async () => {
+                    try {
+                        const response = await fetch('/src/assets/icon-64.png');
+                        return {
+                            pass: response.ok && response.headers.get('content-type')?.includes('image'),
+                            detail: response.ok ? 'icon-64.png present' : 'icon-64.png not found'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: 'icon-64.png missing' };
+                    }
+                }
+            },
+            {
+                id: 'icon-80',
+                title: 'Icon 80x80',
+                test: async () => {
+                    try {
+                        const response = await fetch('/src/assets/icon-80.png');
+                        return {
+                            pass: response.ok && response.headers.get('content-type')?.includes('image'),
+                            detail: response.ok ? 'icon-80.png present' : 'icon-80.png not found'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: 'icon-80.png missing' };
+                    }
+                }
+            },
+            {
+                id: 'cdn-office',
+                title: 'Office.js CDN Accessible',
+                test: async () => {
+                    try {
+                        const response = await fetch('https://appsforoffice.microsoft.com/lib/1/hosted/office.js', { mode: 'no-cors' });
+                        // no-cors means we can't check status, but if it doesn't throw, it's likely accessible
+                        return {
+                            pass: true,
+                            detail: 'Office.js CDN appears accessible'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: 'Cannot reach Office.js CDN (check internet connection)' };
+                    }
+                }
+            },
+            {
+                id: 'cdn-tailwind',
+                title: 'Tailwind CSS CDN Accessible',
+                test: async () => {
+                    try {
+                        const response = await fetch('https://cdn.tailwindcss.com', { mode: 'no-cors' });
+                        return {
+                            pass: true,
+                            detail: 'Tailwind CDN appears accessible'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: 'Cannot reach Tailwind CDN' };
+                    }
+                }
+            },
+            {
+                id: 'cdn-fuse',
+                title: 'Fuse.js CDN Accessible',
+                test: async () => {
+                    try {
+                        const response = await fetch('https://cdn.jsdelivr.net/npm/fuse.js@7.0.0', { mode: 'no-cors' });
+                        return {
+                            pass: true,
+                            detail: 'Fuse.js CDN appears accessible'
+                        };
+                    } catch (error) {
+                        return { pass: false, detail: 'Cannot reach Fuse.js CDN' };
+                    }
+                }
+            }
+        ];
+
+        let results = [];
+
+        async function runChecks() {
+            const checksContainer = document.getElementById('checks');
+            const summaryContainer = document.getElementById('summary');
+            const checkBtn = document.getElementById('checkBtn');
+            
+            checksContainer.innerHTML = '';
+            summaryContainer.style.display = 'none';
+            checkBtn.disabled = true;
+            results = [];
+
+            for (const check of checks) {
+                const checkEl = createCheckElement(check);
+                checksContainer.appendChild(checkEl);
+                
+                updateCheckStatus(checkEl, 'checking', '⏳', 'Checking...');
+                
+                try {
+                    const result = await check.test();
+                    results.push({ ...check, ...result });
+                    updateCheckStatus(
+                        checkEl, 
+                        result.pass ? 'success' : 'error',
+                        result.pass ? '✅' : '❌',
+                        result.detail
+                    );
+                } catch (error) {
+                    results.push({ ...check, pass: false, detail: error.message });
+                    updateCheckStatus(checkEl, 'error', '❌', `Error: ${error.message}`);
+                }
+
+                // Small delay for UX
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            showSummary();
+            checkBtn.disabled = false;
+        }
+
+        function createCheckElement(check) {
+            const div = document.createElement('div');
+            div.className = 'check-item';
+            div.id = `check-${check.id}`;
+            div.innerHTML = `
+                <div class="check-icon">⏸️</div>
+                <div class="check-content">
+                    <div class="check-title">${check.title}</div>
+                    <div class="check-detail">Waiting...</div>
+                </div>
+            `;
+            return div;
+        }
+
+        function updateCheckStatus(element, status, icon, detail) {
+            element.className = `check-item ${status}`;
+            element.querySelector('.check-icon').textContent = icon;
+            element.querySelector('.check-detail').textContent = detail;
+        }
+
+        function showSummary() {
+            const summaryContainer = document.getElementById('summary');
+            const passed = results.filter(r => r.pass).length;
+            const total = results.length;
+            const failed = results.filter(r => !r.pass);
+
+            let summaryClass = 'success';
+            let summaryText = '';
+
+            if (passed === total) {
+                summaryClass = 'success';
+                summaryText = `✅ All ${total} checks passed! Your add-in is ready to use. Next: <a href="INSTALLATION.md" class="help-link">Install in Outlook</a>`;
+            } else if (passed >= total - 2) {
+                summaryClass = 'warning';
+                summaryText = `⚠️ ${passed}/${total} checks passed. ${failed.length} issue(s) detected. The add-in may work with limited functionality.`;
+            } else {
+                summaryClass = 'error';
+                summaryText = `❌ Only ${passed}/${total} checks passed. Please fix the issues above before installing. See <a href="INSTALLATION.md" class="help-link">INSTALLATION.md</a> for help.`;
+            }
+
+            summaryContainer.className = `summary ${summaryClass}`;
+            summaryContainer.innerHTML = summaryText;
+            summaryContainer.style.display = 'block';
+
+            // List critical failures
+            if (failed.length > 0) {
+                const failList = document.createElement('div');
+                failList.style.marginTop = '15px';
+                failList.innerHTML = '<strong>Failed checks:</strong><ul style="margin: 10px 0; padding-left: 20px;">' +
+                    failed.map(f => `<li>${f.title}: ${f.detail}</li>`).join('') +
+                    '</ul>';
+                summaryContainer.appendChild(failList);
+            }
+        }
+
+        // Auto-run on page load
+        window.onload = () => {
+            setTimeout(runChecks, 500);
+        };
+    </script>
+</body>
+</html>
+
+
