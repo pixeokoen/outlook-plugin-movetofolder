@@ -119,10 +119,11 @@ async function getAccessToken() {
 
 async function fetchFoldersFromGraph() {
     const token = await getAccessToken();
+    const restUrl = Office.context.mailbox.restUrl;
     
-    // Fetch all mail folders with recursive expansion
+    // Use Outlook REST API instead of Graph API (works with callback token)
     const response = await fetch(
-        'https://graph.microsoft.com/v1.0/me/mailFolders?$top=500&$select=id,displayName,parentFolderId',
+        `${restUrl}/v2.0/me/mailfolders?$top=500&$select=Id,DisplayName,ParentFolderId`,
         {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -132,11 +133,16 @@ async function fetchFoldersFromGraph() {
     );
     
     if (!response.ok) {
-        throw new Error(`Graph API error: ${response.status} ${response.statusText}`);
+        throw new Error(`Outlook REST API error: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    let folders = data.value;
+    // Convert REST API response format to match our expected format
+    let folders = data.value.map(f => ({
+        id: f.Id,
+        displayName: f.DisplayName,
+        parentFolderId: f.ParentFolderId
+    }));
     
     // Recursively fetch child folders for each folder
     const allFolders = [];
@@ -150,8 +156,10 @@ async function fetchFoldersFromGraph() {
 }
 
 async function fetchChildFolders(parentId, token) {
+    const restUrl = Office.context.mailbox.restUrl;
+    
     const response = await fetch(
-        `https://graph.microsoft.com/v1.0/me/mailFolders/${parentId}/childFolders?$top=500&$select=id,displayName,parentFolderId`,
+        `${restUrl}/v2.0/me/mailfolders/${parentId}/childfolders?$top=500&$select=Id,DisplayName,ParentFolderId`,
         {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -165,7 +173,11 @@ async function fetchChildFolders(parentId, token) {
     }
     
     const data = await response.json();
-    const folders = data.value;
+    const folders = data.value.map(f => ({
+        id: f.Id,
+        displayName: f.DisplayName,
+        parentFolderId: f.ParentFolderId
+    }));
     
     // Recursively fetch children of children
     const allFolders = [...folders];
@@ -179,9 +191,10 @@ async function fetchChildFolders(parentId, token) {
 
 async function moveMessageToFolder(messageId, folderId) {
     const token = await getAccessToken();
+    const restUrl = Office.context.mailbox.restUrl;
     
     const response = await fetch(
-        `https://graph.microsoft.com/v1.0/me/messages/${messageId}/move`,
+        `${restUrl}/v2.0/me/messages/${messageId}/move`,
         {
             method: 'POST',
             headers: {
@@ -189,7 +202,7 @@ async function moveMessageToFolder(messageId, folderId) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                destinationId: folderId
+                DestinationId: folderId
             })
         }
     );
