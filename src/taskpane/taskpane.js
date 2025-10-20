@@ -458,16 +458,19 @@ function showError(message) {
 // ============================================================================
 
 async function getCurrentItemId() {
-    return new Promise((resolve, reject) => {
-        Office.context.mailbox.item.getItemIdAsync((result) => {
-            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                state.currentItemId = result.value;
-                resolve(result.value);
-            } else {
-                reject(new Error('Failed to get current email ID'));
-            }
-        });
-    });
+    try {
+        // In Outlook, item.itemId is a property, not an async method
+        const itemId = Office.context.mailbox.item.itemId;
+        if (itemId) {
+            state.currentItemId = itemId;
+            return itemId;
+        } else {
+            throw new Error('No item ID available');
+        }
+    } catch (error) {
+        console.error('Error getting item ID:', error);
+        throw new Error('Failed to get current email ID');
+    }
 }
 
 // ============================================================================
