@@ -78,12 +78,8 @@ async function initialize() {
 
 async function prefetchToken() {
     try {
-        state.accessToken = await Office.auth.getAccessToken({ allowSignInPrompt: true });
-        
-        // Warm up Graph connection with a lightweight call
-        await fetch('https://graph.microsoft.com/v1.0/me', {
-            headers: { 'Authorization': `Bearer ${state.accessToken}` }
-        });
+        // Use REST API with Office.context.mailbox.getCallbackTokenAsync instead of SSO
+        state.accessToken = await getAccessToken();
         
     } catch (error) {
         console.error('Token prefetch error:', error);
@@ -92,10 +88,20 @@ async function prefetchToken() {
 }
 
 async function getAccessToken() {
-    if (!state.accessToken) {
-        state.accessToken = await Office.auth.getAccessToken({ allowSignInPrompt: true });
+    if (state.accessToken) {
+        return state.accessToken;
     }
-    return state.accessToken;
+    
+    return new Promise((resolve, reject) => {
+        Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, (result) => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                state.accessToken = result.value;
+                resolve(result.value);
+            } else {
+                reject(new Error('Failed to get access token: ' + result.error.message));
+            }
+        });
+    });
 }
 
 // ============================================================================
