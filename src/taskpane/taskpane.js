@@ -93,12 +93,21 @@ async function getAccessToken() {
     }
     
     return new Promise((resolve, reject) => {
+        // Try REST token first (works in most scenarios)
         Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, (result) => {
             if (result.status === Office.AsyncResultStatus.Succeeded) {
                 state.accessToken = result.value;
                 resolve(result.value);
             } else {
-                reject(new Error('Failed to get access token: ' + result.error.message));
+                // Fallback: try regular callback token
+                Office.context.mailbox.getCallbackTokenAsync((fallbackResult) => {
+                    if (fallbackResult.status === Office.AsyncResultStatus.Succeeded) {
+                        state.accessToken = fallbackResult.value;
+                        resolve(fallbackResult.value);
+                    } else {
+                        reject(new Error('Failed to get access token: ' + fallbackResult.error.message));
+                    }
+                });
             }
         });
     });
